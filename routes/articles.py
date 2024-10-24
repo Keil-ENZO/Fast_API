@@ -1,3 +1,6 @@
+import math
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException
 from http.client import responses
 from models.Article import Article
@@ -7,12 +10,22 @@ connection = sqlite3.connect('database.db')
 router = APIRouter()
 
 @router.get("/articles", status_code=200)
-async def root():
-    cursor = connection.execute("SELECT * FROM Article")
+async def root(page: Optional[int] = 1 ):
+
+    cursor = connection.cursor()
+    cursor.execute("SELECT COUNT(*) FROM Article")
+    firspage = 1
+    lastpage = math.ceil(cursor.fetchone()[0] / 5)
+
+
+    cursor = connection.execute("SELECT * FROM Article LIMIT 5 OFFSET ?", ((page - 1) * 5,))
     articles = cursor.fetchall()
+
     cursor.close()
 
     obj = []
+
+
     for article in articles:
         obj.append(Article(
             article_id=article[0],
@@ -22,7 +35,20 @@ async def root():
             author=article[4]
         ))
 
-    return {"status": responses[200], "articles": obj}
+        links = {
+            "self": f"/v1/articles?page={page}",
+             "parent": "/v1/",
+             "first": f"/v1/articles?page={firspage}",
+             "last": f"/v1/articles?page={lastpage}"
+        }
+        if page is not 1:
+            links["prev"] = f"/v1/articles?page={page - 1}"
+
+        if page is not lastpage:
+            links["next"] = f"/v1/articles?page={page + 1}"
+
+    return {"status": responses[200], "articles": obj, "links": links}
+
 
 @router.get("/articles/{article_id}", status_code=200)
 async def getArticle(article_id: int):
@@ -30,13 +56,18 @@ async def getArticle(article_id: int):
     article = cursor.fetchone()
 
     if article is not None:
-        return article
+        return {
+            "status": responses[200],
+            "article": article,
+            "self": f"/v1/articles/{article_id}",
+            "parent": f"/v1/articles",
+            "comments": f"/v1/articles/{article_id}/comments"
+        }
     else:
         raise HTTPException(status_code=404, detail="Article not found")
 
     cursor.close()
 
-    return {"status": responses[200], "article": article}
 
 @router.post("/articles", status_code=201)
 async def postArticle(article: Article):

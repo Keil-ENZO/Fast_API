@@ -7,9 +7,9 @@ connection = sqlite3.connect('database.db')
 router = APIRouter()
 
 
-@router.get("/comments", status_code=200)
-async def root():
-    cursor = connection.execute("SELECT * FROM Comment")
+@router.get("/articles/{article_id}/comments", status_code=200)
+async def root(article_id: int):
+    cursor = connection.execute("SELECT * FROM Comment WHERE article_id = ?", (article_id,))
     comments = cursor.fetchall()
     cursor.close()
 
@@ -22,7 +22,15 @@ async def root():
             article_id=comment[3]
         ))
 
-    return {"status": responses[200], "comments": obj}
+    if len(obj) == 0:
+        raise HTTPException(status_code=404, detail="No comments found")
+
+    links = {
+        "self": f"/v1/articles/{article_id}/comments",
+        "parent": f"/v1/articles/{article_id}"
+    }
+
+    return {"status": responses[200], "comments": obj, "links": links}
 
 
 @router.get("/articles/{article_id}/comments/{comment_id}", status_code=200)
