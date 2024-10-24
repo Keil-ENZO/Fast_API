@@ -13,7 +13,7 @@ connection.execute("""CREATE TABLE IF NOT EXISTS Article (
 
 connection.execute("""CREATE TABLE IF NOT EXISTS Comment (
                                     comment_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                    title VarChar(256),
+                                    author VarChar(256),
                                     content TEXT,
                                     article_id INTEGER,
                                     FOREIGN KEY (article_id) REFERENCES Article(article_id)
