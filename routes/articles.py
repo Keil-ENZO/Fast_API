@@ -1,5 +1,7 @@
 import math
 from typing import Optional
+from urllib.parse import parse_qs
+from fastapi.requests import Request
 
 from fastapi import APIRouter, HTTPException
 from http.client import responses
@@ -8,6 +10,29 @@ import sqlite3
 
 connection = sqlite3.connect('database.db')
 router = APIRouter()
+
+@router.get("/articles/search", status_code=200)
+async def searchArticle(request: Request):
+    params = str(request.query_params)
+    paramsDict = parse_qs(params)
+    filteredParamsKeys = []
+
+    for param in paramsDict:
+        if param in ["title", "slug", "content", "author"]:
+            filteredParamsKeys.append(param)
+
+    likeCondition = ""
+
+    for key in filteredParamsKeys:
+        likeCondition += f" AND {param} LIKE '%{paramsDict[key][0]}%'"
+
+    cursor = connection.cursor()
+
+    cursor.execute(f"SELECT * FROM Article WHERE 1" + likeCondition)
+
+    return {
+        "articles": cursor.fetchall()
+    }
 
 @router.get("/articles", status_code=200)
 async def root(page: Optional[int] = 1 ):
@@ -116,3 +141,6 @@ async def updateArticle(article_id: int, article: Article):
     connection.commit()
 
     return {"status": responses[200], "message": "Article updated successfully", "article": article}
+
+
+
